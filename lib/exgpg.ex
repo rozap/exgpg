@@ -2,26 +2,38 @@ defmodule Exgpg do
 
   @global_args [no_use_agent: true, batch: true]
   @commands [
-    gen_key: [{:gen_key, true} | @global_args],
+    # gen_key: [{:gen_key, true} | @global_args],
     encrypt: [{:encrypt, true} | @global_args]
   ]
 
+  defmodule AbnormalExit do
+    defexception [:output, :status]
+
+    def message(%{status: status, output: output}) do
+      "exited with non-zero status (#{status})"
+    end
+  end
+
+
+
   Enum.each(@commands, fn {command, args} ->
-    def unquote(command)(options) do
+    def unquote(command)(input, options) do
       argv = OptionParser.to_argv(Enum.concat(unquote(args), options))
-      run(argv)
+      run(input, argv)
     end
   end)
 
-  defp run(args) do
+  defp run(input, args) do
     IO.puts "Running #{inspect args}"
     case System.find_executable("gpg") do
       nil -> raise :no_gpg
       exe -> 
-        opts = [:exit_status, :stderr_to_stdout, :in, :binary, :eof, :hide, args: args]
-        IO.inspect opts
-        port = Port.open({:spawn_executable, exe}, opts)
+        opts = [:use_stdio, :exit_status, :binary, :hide, args: args]
 
+        port = Port.open({:spawn_executable, exe}, opts)
+        # send(port, {self, {:command, input}})
+        Port.command(port, input)
+        wait(port)
     end
 
   end
@@ -31,17 +43,13 @@ defmodule Exgpg do
   defp wait(port, acc) do
     receive do
       {^port, {:data, data}} ->
-        IO.puts "RECV"
         IO.inspect data
-        wait(port, acc + data)
-      {^port, :eof} ->
-        send port, {self, :close}
-        receive do
-          { ^port, { :exit_status, 0 } } ->
-            acc
-          { ^port, { :exit_status, status } } ->
-            raise :bad_exit
-        end
+        wait(port, acc <> data)
+      {^port, { :exit_status, 0 } } ->
+        IO.puts "Finished"
+        acc
+      {^port, { :exit_status, status } } ->
+        raise %AbnormalExit{status: status, output: acc}
     end
   end
 
