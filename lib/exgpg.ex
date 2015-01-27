@@ -1,17 +1,12 @@
 defmodule Exgpg do
 
-  @global_args [no_use_agent: true, batch: true]
+  @global_args [no_use_agent: true, batch: true, no_default_keyring: true]
 
   @commands [
     # gen_key: [{:gen_key, true} | @global_args],
-    encrypt: {
-      [{:encrypt, true} | @global_args],
-      [in_suffix: "", out_suffix: ".gpg"]
-    },
-    decrypt: {
-      Enum.concat([{:decrypt, true} | @global_args], [{:output, true}]),
-      [in_suffix: "", out_suffix: ""]
-    }
+    list_key: [{:with_colons, true} | @global_args],
+    encrypt: @global_args,
+    decrypt: @global_args
   ]
 
   defmodule AbnormalExit do
@@ -22,25 +17,49 @@ defmodule Exgpg do
     end
   end
 
-  Enum.each(@commands, fn {command, {args, modifiers}} ->
-    def unquote(command)(input, options) do
-      argv = OptionParser.to_argv(Enum.concat(unquote(args), options))
-      run(input, argv, unquote(modifiers))
+  Enum.each(@commands, fn {command, args} ->
+    def unquote(command)(user_args \\ [], input \\ nil) do
+      args = [{unquote(command), true} | Enum.concat(unquote(args), user_args)]
+      
+      input
+      |> adapt_in(unquote(command))
+      |> run(args) 
+      |> adapt_out(unquote(command))
     end
   end)
 
-  defp run({:file, input_path}, args, modifiers) do
-    case System.find_executable("gpg") do
-      nil -> raise :no_gpg
-      exe -> 
-        args = [input_path | Enum.reverse(args)] |> Enum.reverse
-        IO.puts [exe | args] |> Enum.join(" ")
 
-        File.rm("#{input_path}#{modifiers[:out_suffix]}")
-
-        System.cmd(exe, args)
-    end
+  defp run(nil, args) do
+    spawn_opts = [out: :stream]
+    gpg(args, spawn_opts)
   end
+
+  defp gpg(args, spawn_opts \\ []) do
+    argv = args
+    |> OptionParser.to_argv
+    IO.puts "Running  gpg #{Enum.join(argv, " ")}"
+    Porcelain.spawn("gpg", argv, spawn_opts)
+  end
+
+  def adapt_in(input, _command), do: input
+
+  def adapt_out(result, :list_key) do
+    i = result.out
+    |> Enum.into("")
+    |> String.split("\n")
+    |> Enum.drop(1)
+    |> Enum.map(fn s ->
+      s
+      |> String.split(":")
+      |> Enum.filter(&(&1 != ""))
+    end)
+    |> Enum.filter(&(&1 != []))
+    |> Enum.chunk(2)
+    |> Enum.map(&(List.to_tuple &1))
+  end
+
+
+
 
 
   defp to_genkey("ctrl_" <> rest, ""), do: "%" <> rest
@@ -60,22 +79,6 @@ defmodule Exgpg do
       |> Enum.map(fn {key, val} -> {Atom.to_string(key), val} end)
       |> Enum.map(fn {key, val} -> to_genkey(key, val) end)
       |> Enum.join("\n")
-  end
-
-  # defp run(input, args, modifiers) do
-
-  #       path = "/tmp/#{UUID.uuid1()}#{modifiers[:in_suffix]}"
-  #       :ok = File.write(path, input, [:exclusive, :write])
-
-  #       IO.puts path
-
-  #       File.stream!("#{path}#{modifiers[:out_suffix]}", [:read], :bytes)
-  # end
-  
-  defp tmp(contents) do
-    path = "/tmp/#{UUID.uuid1()}"
-    :ok = File.write(path, input, [:exclusive, :write])
-    path
   end
 
 end

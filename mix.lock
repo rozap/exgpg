@@ -1,1 +1,2 @@
-%{"uuid": {:hex, :uuid, "0.1.5"}}
+%{"porcelain": {:hex, :porcelain, "2.0.0"},
+  "uuid": {:hex, :uuid, "0.1.5"}}

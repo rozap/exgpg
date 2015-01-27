@@ -12,7 +12,7 @@ defmodule Exgpg.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger]]
+    [applications: [:logger, :porcelain]]
   end
 
   # Dependencies can be Hex packages:
@@ -25,6 +25,9 @@ defmodule Exgpg.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
-    [ { :uuid, "~> 0.1.5" } ]
+    [
+      { :uuid, "~> 0.1.5" },
+      { :porcelain, "~> 2.0.0"}
+    ]
   end
 end

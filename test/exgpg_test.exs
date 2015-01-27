@@ -1,14 +1,21 @@
 defmodule ExgpgTest do
   use ExUnit.Case
 
-  test "can encrypt a file" do
-    IO.puts "#{System.cwd()}/test/data/hello_world"
-    encrypted = Exgpg.encrypt(
-      {:file, "#{System.cwd()}/test/data/hello_world"}, 
-      [recipient: "chrisd1891@gmail.com"]
-    )
-    IO.inspect encrypted
-  end
+  # test "can encrypt a string" do
+  #   proc = Exgpg.encrypt("hello world", 
+  #     [recipient: "chrisd1891@gmail.com"]
+  #   )
+  #   {:ok, cwd} = File.cwd
+  #   name = "can_encrypt.out"
+  #   actual = File.stream!("#{cwd}/test/temp/#{name}")
+
+
+
+  #   assert actual == expected 
+  #   # proc.out
+  #   # |> Stream.into()
+  #   # |> Stream.run
+  # end
 
   test "keylist to filecontents" do
     result = Exgpg.keylist_to_filecontents([
@@ -41,4 +48,33 @@ defmodule ExgpgTest do
      assert expected == result
   end
 
+  test "get a list of keys" do
+    {:ok, c} = File.cwd
+    result = Exgpg.list_key(
+      [
+        secret_keyring: "#{c}/test/data/test.sec",
+        keyring: "#{c}/test/data/test.pub",
+      ]
+    )
+
+    assert result == [
+      {
+        ["pub", "u", "1024", "1", "6B056E5DF106EB16", "2015-01-26", "u", 
+          "testtest (test) <test@test.com>", "scESC"
+        ],
+        ["sub", "u", "1024", "1", "8CF3FF6FEC6D9EB5", "2015-01-26", "e"]
+      }
+    ]
+  end
+
+  test "can make a new key" do
+    {:ok, c} = File.cwd
+    result = Exgpg.list_key(
+      [
+        secret_keyring: "#{c}/test/data/test_create.sec",
+        keyring: "#{c}/test/data/test_create.pub",
+      ]
+    )
+    
+  end
 end
