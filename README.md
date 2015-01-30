@@ -11,7 +11,7 @@ Add this to your mixfile
  { :exgpg, "~> 0.0.1" },
 ```
 
-Install (https://github.com/alco/goon)[goon] and put it on your PATH.
+Install [goon](https://github.com/alco/goon) and put it on your PATH.
 If you can run `goon` and get a usage output, then porcelain and thereby exgpg will be able to use it. 
 
 ## Usage
