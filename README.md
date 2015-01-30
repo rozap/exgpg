@@ -22,6 +22,10 @@ If you can run `goon` and get a usage output, then porcelain and thereby exgpg w
 out = "test string"
 |> Exgpg.symmetric([passphrase: "hunter2"])
 |> Enum.into("")
+
+out # this will be a binary of stuff
+
+out = out
 |> Exgpg.decrypt([passphrase: "hunter2"])
 |> Enum.into("")
 
