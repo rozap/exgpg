@@ -6,6 +6,55 @@ defmodule ExgpgTest do
     Porcelain.reinit(Porcelain.Driver.Goon)
   end
 
+
+  def fixture(name) do
+    Path.join([__DIR__, "fixtures", name])    
+  end
+
+  def all_keyrings do
+    [
+      secret_keyring: fixture("test.sec"),
+      keyring: fixture("test.pub")
+    ]
+  end
+
+  def pub_keyrings do
+    [
+      keyring: fixture("test.pub")
+    ]
+  end
+
+
+  def print(thing, label \\ "") do
+    IO.puts label
+    IO.inspect(thing)
+    thing
+  end
+
+
+  test "can encrypt and then decrypt a string" do
+
+    out = "hello world"
+    |> Exgpg.encrypt([{:recipient, "test@test.com"} | all_keyrings])
+    |> Enum.into("")
+    |> Exgpg.decrypt(all_keyrings)
+    |> Enum.into("")
+
+    assert out == "hello world"
+  end
+
+  test "can encrypt and then decrypt a file" do
+    path = fixture("enc-dec.txt")
+    File.write(path, "hello world", [:write])
+
+    assert {:path, path}
+    |> Exgpg.encrypt([{:recipient, "test@test.com"} | all_keyrings])
+    |> Enum.into("")
+    |> Exgpg.decrypt(all_keyrings)
+    |> Enum.into("") == "hello world"
+  end
+
+
   test "get version" do
     out = Exgpg.version |> Enum.into("")
 
@@ -15,13 +64,7 @@ defmodule ExgpgTest do
   end
 
   test "get a list of keys" do
-    {:ok, c} = File.cwd
-    result = Exgpg.list_key(
-      [
-        secret_keyring: "#{c}/test/data/test.sec",
-        keyring: "#{c}/test/data/test.pub",
-      ]
-    )
+    result = Exgpg.list_key(all_keyrings)
     assert result == [
       {
         ["pub", "u", "1024", "1", "6B056E5DF106EB16", "2015-01-26", "u", 
@@ -33,22 +76,7 @@ defmodule ExgpgTest do
   end
 
 
- test "can encrypt and then decrypt a string" do
-    {:ok, c} = File.cwd
 
-    keyrings = [
-      secret_keyring: "#{c}/test/data/test.sec",
-      keyring: "#{c}/test/data/test.pub"
-    ]
-
-    out = "hello world"
-    |> Exgpg.encrypt([{:recipient, "test@test.com"} | keyrings])
-    |> Enum.into("")
-    |> Exgpg.decrypt(keyrings)
-    |> Enum.into("")
-
-    assert out == "hello world"
-  end
 
 
   test "test symmetric encrypt/decrypt" do
@@ -61,23 +89,33 @@ defmodule ExgpgTest do
   end
 
 
+  test "can create a signed document" do
+    {:ok, c} = File.cwd
 
-  # @tag timeout: 300_000
-  # test "can make a new key" do
-  #   out = Exgpg.gen_key(
-  #     [
-  #       key_type: "DSA",
-  #       key_length: "1024",
-  #       subkey_type: "ELG-E",
-  #       subkey_length: "1024",
-  #       name_real: "Foo Bar",
-  #       name_email: "foo@bar.com",
-  #       expire_date: "0",
-  #       ctrl_pubring: "foo.pub",
-  #       ctrl_secring: "foo.sec",
-  #       ctrl_commit: "",
-  #       ctrl_echo: "done" 
-  #     ]
-  #   )
-  # end
+    out = "hello world"
+    |> Exgpg.encrypt([{:recipient, "test@test.com"}, {:sign, true} | all_keyrings])
+    |> Enum.into("")
+    |> Exgpg.verify(all_keyrings)
+    |> Enum.into("")
+  end
+
+
+  @tag timeout: 300_000
+  test "can make a new key" do
+    out = Exgpg.gen_key(
+      [
+        key_type: "DSA",
+        key_length: "1024",
+        subkey_type: "ELG-E",
+        subkey_length: "1024",
+        name_real: "Foo Bar",
+        name_email: "foo@bar.com",
+        expire_date: "0",
+        ctrl_pubring: "foo.pub",
+        ctrl_secring: "foo.sec",
+        ctrl_commit: "",
+        ctrl_echo: "done" 
+      ]
+    )
+  end
 end
