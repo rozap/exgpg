@@ -27,7 +27,7 @@ encrypted = Enum.into(proc.out, "")
 
 proc = Exgpg.decrypt(encrypted, [passphrase: "hunter2"])
 
-
+#put the decrypt stream into a string
 Enum.into(proc.out, "") # this will be "test string"
 ```
 
@@ -40,13 +40,11 @@ keyrings = [
   keyring: "/path/to/keyring.pub"
 ]
 
-out = "hello world"
-|> Exgpg.encrypt([{:recipient, "test@test.com"} | keyrings])
-|> Enum.into("")
-|> Exgpg.decrypt(keyrings)
-|> Enum.into("")
+enc_proc = Exgpg.encrypt("hello world", [{:recipient, "test@test.com"} | keyrings])
 
-out # this will be "hello world"
+dec_proc = Exgpg.decrypt(enc_proc.out, keyrings)
+
+Enum.into(dec_proc.out, "") # this will be "hello world"
 
 ```
 
