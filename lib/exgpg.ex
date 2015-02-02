@@ -12,7 +12,8 @@ defmodule Exgpg do
     encrypt: @global_args,
     decrypt: @global_args,
     symmetric: @global_args,
-    verify: @global_args
+    verify: @global_args,
+    sign: @global_args
   ]
 
   Enum.each(@without_input, fn {command, args} ->
@@ -20,7 +21,6 @@ defmodule Exgpg do
       args = [{unquote(command), true} | unquote(args)]
       {nil, args, user_args}
       |> run(unquote(command))
-      |> close(unquote(command))
       |> adapt_out(unquote(command))
     end
   end)
@@ -31,26 +31,25 @@ defmodule Exgpg do
       {input, args, user_args}
       |> adapt_in(unquote(command))
       |> run(unquote(command))
-      |> close(unquote(command))
       |> adapt_out(unquote(command))
     end
   end)
 
   defp run({nil, args, user_args}, _) do
     spawn_opts = [out: :stream]
-    {gpg(args, user_args, spawn_opts), nil}
+    gpg(args, user_args, spawn_opts)
   end
 
   defp run({input, args, user_args}, _) do
-    spawn_opts = [in: input, out: :stream]
-    {gpg(args, user_args, spawn_opts), input}
+    spawn_opts = [in: input, out: :stream, result: :keep]
+    gpg(args, user_args, spawn_opts)
   end
 
   defp gpg(args, user_args, spawn_opts) do
     argv = args
     |> Enum.concat(user_args)
     |> OptionParser.to_argv
-    IO.puts "Running  gpg #{inspect argv}"
+    IO.puts "Running  gpg #{Enum.join(argv, " ")}"
     Porcelain.spawn("gpg", argv, spawn_opts)
   end
 
@@ -67,13 +66,6 @@ defmodule Exgpg do
   def adapt_in({input, args, user_args}, _), do: {input, args, user_args}
 
 
-  def close({proc, {:path, _}}, _), do: proc
-  def close({proc, {:file, _}}, _), do: proc
-  def close({proc, _input}, _) do
-    Porcelain.Process.send_input(proc, "")
-    proc
-  end
-
   def adapt_out(result, :list_key) do
     result.out
     |> Enum.into("")
@@ -88,7 +80,12 @@ defmodule Exgpg do
     |> Enum.chunk(2)
     |> Enum.map(&(List.to_tuple &1))
   end
-  def adapt_out(proc, _), do: proc.out
+
+  def adapt_out(proc, :verify) do
+    Porcelain.Process.await(proc, 1000)
+  end
+
+  def adapt_out(proc, _), do: proc
 
 
   defp to_genkey("ctrl_" <> rest, ""), do: "%" <> rest
