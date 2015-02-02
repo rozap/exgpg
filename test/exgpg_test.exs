@@ -6,9 +6,25 @@ defmodule ExgpgTest do
     Porcelain.reinit(Porcelain.Driver.Goon)
   end
 
+  ##
+  # This will re-init all the fixtures, as some will change 
+  # due to tests adding keys and such
+  setup do
+    source = Path.join([__DIR__, "fixtures/originals"])    
+    dest = Path.join([__DIR__, "fixtures"])    
+    source
+    |> File.ls!
+    |> Enum.each(fn f -> 
+      File.cp!(
+        Path.join([source, f]),
+        Path.join([dest, f])
+      )
+    end)
+  end
+
 
   def fixture(name) do
-    Path.join([__DIR__, "fixtures", name])    
+    Path.join([__DIR__, "fixtures", name])
   end
 
   def output(proc) do
@@ -35,9 +51,18 @@ defmodule ExgpgTest do
     thing
   end
 
+  def key_from_email(email) do
+    res = all_keyrings
+    |> Exgpg.list_key
+    |> Enum.find(false, fn {pub, _} -> 
+      Enum.find(pub, false, fn st -> 
+        String.contains?(st, email)
+      end)
+    end)
+  end
+
 
   test "can encrypt and then decrypt a string" do
-
     out = "hello world"
     |> Exgpg.encrypt([{:recipient, "test@test.com"} | all_keyrings])
     |> output
@@ -74,7 +99,6 @@ defmodule ExgpgTest do
 
   test "get version" do
     out = Exgpg.version |> output |> Enum.into("")
-
     assert String.contains?(out, "GnuPG")
     assert String.contains?(out, "License GPLv3+")
   end
@@ -91,7 +115,36 @@ defmodule ExgpgTest do
     ]
   end
 
-  test "test symmetric encrypt/decrypt" do
+
+  test "can export an ascii armored key" do
+    result = "test@test.com"
+    |> Exgpg.export_key([{:armor, true} | all_keyrings])
+    |> output
+    |> Enum.into("")
+    
+    expected = fixture("test_armor_export")
+    |> File.open!([:read])
+    |> IO.read(:all)
+
+    assert expected == result
+  end
+
+
+  test "can import a key" do
+    assert key_from_email("chrisd1891@gmail.com") == false
+
+    {:path, fixture("mine.gpg")}
+    |> Exgpg.import_key(all_keyrings)
+    |> output
+    |> Enum.into("")
+    |> IO.puts
+
+    assert key_from_email("chrisd1891@gmail.com") != false
+  end
+
+
+
+  test "symmetric encrypt/decrypt" do
     res = "test string"
     |> Exgpg.symmetric([passphrase: "hunter2"])
     |> output
@@ -110,7 +163,7 @@ defmodule ExgpgTest do
     assert proc.status == 2
   end
 
- test "can sign and verify" do
+  test "can sign and verify" do
     {:ok, proc} = "hello world"
     |> Exgpg.sign([{:recipient, "test@test.com"} | all_keyrings])
     |> output

@@ -16,6 +16,7 @@ defmodule Exgpg do
     sign: @global_args
   ]
 
+
   Enum.each(@without_input, fn {command, args} ->
     def unquote(command)(user_args \\ []) do
       args = [{unquote(command), true} | unquote(args)]
@@ -34,6 +35,17 @@ defmodule Exgpg do
       |> adapt_out(unquote(command))
     end
   end)
+
+
+  def export_key(email, args \\ []) do
+    run({nil, args, [{:export, email}]}, :ok)
+  end
+
+  def import_key(input, user_args \\ []) do
+    run({input, [{:'import', true} | @global_args], user_args}, :ok)
+  end
+
+
 
   defp run({nil, args, user_args}, _) do
     spawn_opts = [out: :stream]

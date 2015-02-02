@@ -19,17 +19,16 @@ If you can run `goon` and get a usage output, then porcelain and thereby exgpg w
 #### Symmetric 
 
 ```elixir
-out = "test string"
-|> Exgpg.symmetric([passphrase: "hunter2"])
-|> Enum.into("")
+#proc is a Porcelain.Process. The `out` key is a stream of gpg's output.
+proc = Exgpg.symmetric("test string", [passphrase: "hunter2"])
 
-out # this will be a binary of stuff
+# this will be a binary of the encrypted "test string"
+encrypted = Enum.into(proc.out, "") 
 
-out = out
-|> Exgpg.decrypt([passphrase: "hunter2"])
-|> Enum.into("")
+proc = Exgpg.decrypt(encrypted, [passphrase: "hunter2"])
 
-out # this will be "test string"
+
+Enum.into(proc.out, "") # this will be "test string"
 ```
 
 
