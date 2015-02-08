@@ -1,6 +1,6 @@
 defmodule Exgpg do
 
-  @global_args [no_use_agent: true, batch: true, no_default_keyring: true]
+  @global_args [no_use_agent: true, batch: true, no_default_keyring: true, trust_model: :always]
 
   @without_input [
     list_key: [{:with_colons, true} | @global_args],
@@ -8,7 +8,7 @@ defmodule Exgpg do
   ]
 
   @with_input [
-    gen_key: @global_args,
+    gen_key: [],
     encrypt: @global_args,
     decrypt: @global_args,
     symmetric: @global_args,
@@ -36,7 +36,6 @@ defmodule Exgpg do
     end
   end)
 
-
   def export_key(email, args \\ []) do
     run({nil, args, [{:export, email}]}, :ok)
   end
@@ -44,8 +43,6 @@ defmodule Exgpg do
   def import_key(input, user_args \\ []) do
     run({input, [{:'import', true} | @global_args], user_args}, :ok)
   end
-
-
 
   defp run({nil, args, user_args}, _) do
     spawn_opts = [out: :stream]
@@ -65,13 +62,12 @@ defmodule Exgpg do
     Porcelain.spawn("gpg", argv, spawn_opts)
   end
 
-  def adapt_in({_input, _args, user_args}, :gen_key) do
-    input = user_args
+  def adapt_in({input, args, user_args}, :gen_key) do
+    input = input
     |> Enum.filter(fn {key, _} -> key != :gen_key end)    
     |> Enum.map(fn {key, val} -> {Atom.to_string(key), val} end)
     |> Enum.map(fn {key, val} -> to_genkey(key, val) end)
     |> Enum.join("\n")
-    IO.puts input
     {input, [{:gen_key, true} | @global_args], []}
   end
 
@@ -95,6 +91,10 @@ defmodule Exgpg do
 
   def adapt_out(proc, :verify) do
     Porcelain.Process.await(proc, 1000)
+  end
+
+  def adapt_out(proc, :gen_key) do
+    Porcelain.Process.await(proc, 100_000)
   end
 
   def adapt_out(proc, _), do: proc
