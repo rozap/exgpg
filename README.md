@@ -8,7 +8,7 @@ Use gpg from elixir
 
 Add this to your mixfile
 ```elixir
- { :exgpg, "~> 0.0.1" },
+ { :exgpg, "~> 0.0.3" },
 ```
 
 Install [goon](https://github.com/alco/goon) and put it on your PATH.

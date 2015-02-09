@@ -3,7 +3,7 @@ defmodule Exgpg.Mixfile do
 
   def project do
     [app: :exgpg,
-     version: "0.0.2",
+     version: "0.0.3",
      elixir: "~> 1.0.0",
      deps: deps]
   end
