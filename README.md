@@ -51,7 +51,7 @@ IO.puts out # this will print "hello world"
 ```
 
 #### Generate a keypair
-```
+```elixir
 {:ok, proc} = Exgpg.gen_key(
       [
         key_type: "DSA",
