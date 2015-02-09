@@ -58,11 +58,11 @@ defmodule Exgpg do
     argv = args
     |> Enum.concat(user_args)
     |> OptionParser.to_argv
-    IO.puts "Running  gpg #{Enum.join(argv, " ")}"
+    # IO.puts "Running  gpg #{Enum.join(argv, " ")}"
     Porcelain.spawn("gpg", argv, spawn_opts)
   end
 
-  def adapt_in({input, args, user_args}, :gen_key) do
+  def adapt_in({input, _args, _user_args}, :gen_key) do
     input = input
     |> Enum.filter(fn {key, _} -> key != :gen_key end)    
     |> Enum.map(fn {key, val} -> {Atom.to_string(key), val} end)

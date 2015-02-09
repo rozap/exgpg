@@ -1,23 +1,11 @@
 defmodule ExgpgTest do
   use ExUnit.Case
-
+  import Exgpg.Test.Utils
  
   setup_all do
     Porcelain.reinit(Porcelain.Driver.Goon)
-
     gen_key_for("alice")
     gen_key_for("bob")
-
-    # result = "alice@alice.com"
-    # |> Exgpg.export_key([{:armor, true} | rings_for("alice")])
-    # |> output
-    # |> Enum.into("")
-    # |> Exgpg.import_key(rings_for("alice"))
-    # |> output
-    # |> Enum.into("")
-    # |> IO.puts
-
-
     {:ok, %{}}
   end
 
@@ -37,73 +25,7 @@ defmodule ExgpgTest do
     end)
   end
 
-  def gen_key_for(name) do
-    {:ok, proc} = Exgpg.gen_key(
-      [
-        key_type: "DSA",
-        key_length: "1024",
-        subkey_type: "ELG-E",
-        subkey_length: "1024",
-        name_real: "#{name} #{name}",
-        name_email: "#{name}@#{name}.com",
-        expire_date: "0",
-        ctrl_pubring: rings_for(name)[:keyring],
-        ctrl_secring: rings_for(name)[:secret_keyring],
-        ctrl_commit: "",
-        ctrl_echo: "done"
-      ]
-    )
-    assert proc.status == 0
-    proc
-  end
-
-  def fixture(name) do
-    Path.join([__DIR__, "fixtures", name])
-  end
-
-  def output(proc) do
-    proc.out
-  end
-
-  def err_output(proc) do
-    proc.err
-  end
-
-  def rings_for(name) do
-    [
-      secret_keyring: fixture("#{name}.sec"),
-      keyring: fixture("#{name}.pub")
-    ]
-  end
-
-  def pub_ring_for(name) do
-    [_, k] = rings_for(name)
-    k
-  end
-
-  def sec_ring_for(name) do
-    [s, _] = rings_for(name)
-    s
-  end
-
-
-  def print(thing, label \\ "") do
-    IO.puts label
-    IO.inspect(thing)
-    thing
-  end
-
-  def key_from_email(name, email) do
-    res = rings_for(name)
-    |> Exgpg.list_key
-    |> Enum.find(false, fn {pub, _} -> 
-      Enum.find(pub, false, fn st -> 
-        String.contains?(st, email)
-      end)
-    end)
-  end
-
-
+ 
   test "can get an error message when things don't work" do
     proc = "hello world"
     |> Exgpg.encrypt([{:recipient, "alice@alice.com"} | rings_for("alice")])
@@ -157,7 +79,7 @@ defmodule ExgpgTest do
   end
 
   test "get a list of keys" do
-    res = Exgpg.list_key(rings_for("alice"))
+    Exgpg.list_key(rings_for("alice"))
   end
 
 
@@ -172,8 +94,6 @@ defmodule ExgpgTest do
 
 
   test "can import a key" do
-    # assert key_from_email("chrisd1891@gmail.com") == false
-
     {:path, fixture("mine.gpg")}
     |> Exgpg.import_key(rings_for("alice"))
     |> output
