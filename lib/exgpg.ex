@@ -45,12 +45,12 @@ defmodule Exgpg do
   end
 
   defp run({nil, args, user_args}, _) do
-    spawn_opts = [out: :stream]
+    spawn_opts = [out: :stream, err: :string]
     gpg(args, user_args, spawn_opts)
   end
 
   defp run({input, args, user_args}, _) do
-    spawn_opts = [in: input, out: :stream, result: :keep]
+    spawn_opts = [in: input, out: :stream, result: :keep, err: :string]
     gpg(args, user_args, spawn_opts)
   end
 

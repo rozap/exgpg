@@ -5,22 +5,19 @@ defmodule ExgpgTest do
   setup_all do
     Porcelain.reinit(Porcelain.Driver.Goon)
 
-    {:ok, proc} = Exgpg.gen_key(
-      [
-        key_type: "DSA",
-        key_length: "1024",
-        subkey_type: "ELG-E",
-        subkey_length: "1024",
-        name_real: "test test",
-        name_email: "test@test.com",
-        expire_date: "0",
-        ctrl_pubring: all_keyrings[:keyring],
-        ctrl_secring: all_keyrings[:secret_keyring],
-        ctrl_commit: "",
-        ctrl_echo: "done"
-      ]
-    )    
-    assert proc.status == 0
+    gen_key_for("alice")
+    gen_key_for("bob")
+
+    # result = "alice@alice.com"
+    # |> Exgpg.export_key([{:armor, true} | rings_for("alice")])
+    # |> output
+    # |> Enum.into("")
+    # |> Exgpg.import_key(rings_for("alice"))
+    # |> output
+    # |> Enum.into("")
+    # |> IO.puts
+
+
     {:ok, %{}}
   end
 
@@ -40,6 +37,25 @@ defmodule ExgpgTest do
     end)
   end
 
+  def gen_key_for(name) do
+    {:ok, proc} = Exgpg.gen_key(
+      [
+        key_type: "DSA",
+        key_length: "1024",
+        subkey_type: "ELG-E",
+        subkey_length: "1024",
+        name_real: "#{name} #{name}",
+        name_email: "#{name}@#{name}.com",
+        expire_date: "0",
+        ctrl_pubring: rings_for(name)[:keyring],
+        ctrl_secring: rings_for(name)[:secret_keyring],
+        ctrl_commit: "",
+        ctrl_echo: "done"
+      ]
+    )
+    assert proc.status == 0
+    proc
+  end
 
   def fixture(name) do
     Path.join([__DIR__, "fixtures", name])
@@ -49,17 +65,25 @@ defmodule ExgpgTest do
     proc.out
   end
 
-  def all_keyrings do
+  def err_output(proc) do
+    proc.err
+  end
+
+  def rings_for(name) do
     [
-      secret_keyring: fixture("test.sec"),
-      keyring: fixture("test.pub")
+      secret_keyring: fixture("#{name}.sec"),
+      keyring: fixture("#{name}.pub")
     ]
   end
 
-  def pub_keyrings do
-    [
-      keyring: fixture("test.pub")
-    ]
+  def pub_ring_for(name) do
+    [_, k] = rings_for(name)
+    k
+  end
+
+  def sec_ring_for(name) do
+    [s, _] = rings_for(name)
+    s
   end
 
 
@@ -69,8 +93,8 @@ defmodule ExgpgTest do
     thing
   end
 
-  def key_from_email(email) do
-    res = all_keyrings
+  def key_from_email(name, email) do
+    res = rings_for(name)
     |> Exgpg.list_key
     |> Enum.find(false, fn {pub, _} -> 
       Enum.find(pub, false, fn st -> 
@@ -80,11 +104,22 @@ defmodule ExgpgTest do
   end
 
 
+  test "can get an error message when things don't work" do
+    proc = "hello world"
+    |> Exgpg.encrypt([{:recipient, "alice@alice.com"} | rings_for("alice")])
+    |> output
+    |> Exgpg.decrypt([pub_ring_for("alice")])
+    |> Porcelain.Process.await
+
+    {:ok, s} = proc
+    assert String.contains?(s.err, "secret key not available")
+  end
+
   test "can encrypt and then decrypt a string" do
     out = "hello world"
-    |> Exgpg.encrypt([{:recipient, "test@test.com"} | all_keyrings])
+    |> Exgpg.encrypt([{:recipient, "alice@alice.com"} | rings_for("alice")])
     |> output
-    |> Exgpg.decrypt(all_keyrings)
+    |> Exgpg.decrypt(rings_for("alice"))
     |> output
     |> Enum.into("")
 
@@ -96,9 +131,9 @@ defmodule ExgpgTest do
     File.write(path, "hello world", [:write])
 
     assert {:path, path}
-    |> Exgpg.encrypt([{:recipient, "test@test.com"} | all_keyrings])
+    |> Exgpg.encrypt([{:recipient, "bob@bob.com"}, pub_ring_for("bob")])
     |> output
-    |> Exgpg.decrypt(all_keyrings)
+    |> Exgpg.decrypt(rings_for("bob"))
     |> output
     |> Enum.into("") == "hello world"
   end
@@ -108,9 +143,9 @@ defmodule ExgpgTest do
     File.write(path, "hello world", [:write])
     {:ok, file} = File.open(path, [:read])
     assert {:file, file}
-    |> Exgpg.encrypt([{:recipient, "test@test.com"} | all_keyrings])
+    |> Exgpg.encrypt([{:recipient, "alice@alice.com"}, pub_ring_for("alice")])
     |> output
-    |> Exgpg.decrypt(all_keyrings)
+    |> Exgpg.decrypt(rings_for("alice"))
     |> output
     |> Enum.into("") == "hello world"
   end
@@ -122,13 +157,13 @@ defmodule ExgpgTest do
   end
 
   test "get a list of keys" do
-    res = Exgpg.list_key(all_keyrings)
+    res = Exgpg.list_key(rings_for("alice"))
   end
 
 
   test "can export an ascii armored key" do
-    result = "test@test.com"
-    |> Exgpg.export_key([{:armor, true} | all_keyrings])
+    result = "alice@alice.com"
+    |> Exgpg.export_key([{:armor, true} | rings_for("alice")])
     |> output
     |> Enum.into("")
     
@@ -140,12 +175,12 @@ defmodule ExgpgTest do
     # assert key_from_email("chrisd1891@gmail.com") == false
 
     {:path, fixture("mine.gpg")}
-    |> Exgpg.import_key(all_keyrings)
+    |> Exgpg.import_key(rings_for("alice"))
     |> output
     |> Enum.into("")
     |> IO.puts
 
-    assert key_from_email("chrisd1891@gmail.com") != false
+    assert key_from_email("alice", "chrisd1891@gmail.com") != false
   end
 
   test "symmetric encrypt/decrypt" do
@@ -161,26 +196,26 @@ defmodule ExgpgTest do
   # Since we're using trust mode always, this won't work?
   # test "can verify a signed document" do
   #   path = fixture("hello_world.sig")
-  #   {:ok, proc} = Exgpg.verify({:path, path}, all_keyrings)
+  #   {:ok, proc} = Exgpg.verify({:path, path}, rings_for("alice"))
   #   assert proc.status == 0    
-  #   {:ok, proc} = Exgpg.verify("foobar", all_keyrings)
+  #   {:ok, proc} = Exgpg.verify("foobar", rings_for("alice"))
   #   assert proc.status == 2
   # end
 
   test "can sign and verify" do
     {:ok, proc} = "hello world"
-    |> Exgpg.sign([{:recipient, "test@test.com"} | all_keyrings])
+    |> Exgpg.sign([{:recipient, "alice@alice.com"} | rings_for("alice")])
     |> output
-    |> Exgpg.verify([{:recipient, "test@test.com"} | all_keyrings])
+    |> Exgpg.verify([{:recipient, "alice@alice.com"} | rings_for("alice")])
     assert proc.status == 0
   end
 
 
   test "can sign and decrypt" do
     out = "hello world"
-    |> Exgpg.sign([{:recipient, "test@test.com"} | all_keyrings])
+    |> Exgpg.sign([{:recipient, "alice@alice.com"} | rings_for("alice")])
     |> output
-    |> Exgpg.decrypt([{:recipient, "test@test.com"} | all_keyrings])
+    |> Exgpg.decrypt([{:recipient, "alice@alice.com"} | rings_for("alice")])
     |> output
     |> Enum.into("")
     assert out == "hello world"
