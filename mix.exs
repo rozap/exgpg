@@ -6,7 +6,9 @@ defmodule Exgpg.Mixfile do
      version: "0.0.3",
      elixir: "~> 1.0.0",
      deps: deps,
-     package: package]
+     package: package,
+     description: description,
+     source_url: "https://github.com/rozap/exgpg"]
   end
 
   # Configuration for the OTP application
@@ -19,13 +21,18 @@ defmodule Exgpg.Mixfile do
   defp package do
     [
      files: ["config", "lib", "mix.exs", "README.md", "LICENSE*", "test*", "to_import"],
-     contributors: ["Chris Duranti"],
-     deps: deps,
+     maintainers: ["Chris Duranti"],
      licenses: ["MIT"],
      links: %{
          "GitHub" => "https://github.com/rozap/exgpg",
      }
     ]
+  end
+  
+  defp description do
+    """
+    Use gpg from Elixir
+    """
   end
 
   # Dependencies can be Hex packages:
