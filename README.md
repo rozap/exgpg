@@ -72,4 +72,4 @@ proc.status #will give the status code
 proc.err #will give an error description, if one occurred
 ```
 
-Options are passed directly to `gpg`, with a transformation to change the the `key_with_underscore` keylist convention in elixir to the `--key-with-dashes`. Most options should Just Work™.
+Options are passed directly to `gpg`, with a transformation to change the `key_with_underscore` keylist convention in elixir to the `--key-with-dashes`. Most options should Just Work™.
